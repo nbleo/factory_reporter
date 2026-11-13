@@ -1,0 +1,17 @@
+# local only
+config.json
+.workbuddy/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# editor / OS
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
+
+# test artifacts
+tests/tmp/
+tests/out/
