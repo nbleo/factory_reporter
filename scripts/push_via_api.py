@@ -262,18 +262,31 @@ def publish_pages(repo: str, branch: str, message: str, token: str, subdir: str 
 def enable_pages(repo: str, branch: str, token: str) -> int:
     """Point Pages at `branch` (root), replacing any GitHub Actions build."""
     source = {"branch": branch, "path": "/"}
-    st, body = api("POST", f"/repos/{repo}/pages", token,
-                   {"build_type": "legacy", "source": source})
-    if st in (200, 201, 204):
-        print(f"Pages     : enabled - serving branch '{branch}' at its root")
-        return 0
-    if st == 409:                                  # already enabled -> switch source
+    st, cur = api("GET", f"/repos/{repo}/pages", token)
+    if st == 200 and isinstance(cur, dict):
+        if cur.get("source") == source:
+            print(f"Pages     : already serving branch '{branch}' "
+                  f"-> {cur.get('html_url')}")
+            return 0
         st, body = api("PUT", f"/repos/{repo}/pages", token,
                        {"build_type": "legacy", "source": source})
         if st in (200, 204):
             print(f"Pages     : source switched to branch '{branch}'")
             return 0
-    print(f"Pages     : could not switch automatically (HTTP {st} {body})")
+        print(f"Pages     : could not switch automatically (HTTP {st} {body})")
+    else:
+        st, body = api("POST", f"/repos/{repo}/pages", token,
+                       {"build_type": "legacy", "source": source})
+        if st in (200, 201, 204):
+            print(f"Pages     : enabled - serving branch '{branch}' at its root")
+            return 0
+        if st == 409:                              # exists but unreadable
+            st, body = api("PUT", f"/repos/{repo}/pages", token,
+                           {"build_type": "legacy", "source": source})
+            if st in (200, 204):
+                print(f"Pages     : source set to branch '{branch}'")
+                return 0
+        print(f"Pages     : could not be configured automatically (HTTP {st} {body})")
     print(f"            set it once at https://github.com/{repo}/settings/pages"
           f"  ->  Source: Deploy from a branch, branch '{branch}', folder '/ (root)'")
     return 1
