@@ -9,7 +9,14 @@ What it does
      * factory_reporter_data  PRIVATE  - where the phone syncs visit reports
 2. Pushes the working tree **through the GitHub REST API**
    (git-over-HTTPS is blocked on this network; api.github.com is not).
-3. Switches GitHub Pages on with "GitHub Actions" as the build source.
+3. Publishes `app/` to the `gh-pages` branch and points Pages at it
+   ("deploy from a branch", not a workflow - a fine-grained token needs the
+   extra "Workflows" permission to push `.github/workflows/*`, and branch
+   deployment needs nothing beyond Contents + Pages).
+
+Re-deploying after a change is just:
+
+    GITHUB_TOKEN=<pat> python scripts/push_via_api.py --pages --message "..."
 
 Notes
 -----
