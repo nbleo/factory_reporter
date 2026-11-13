@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://api.github.com; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'">
+<title>Factory Reporter</title>
+<meta name="theme-color" content="#1F1FAF">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn" id="btnBack" type="button" aria-label="Back" hidden>&#8592;</button>
+  <div class="brand">
+    <span class="brand-mark">FR</span>
+    <span class="brand-text">Factory Reporter</span>
+  </div>
+  <div class="top-actions">
+    <button class="icon-btn" id="btnSyncState" type="button" aria-label="Backup status" title="Backup status">
+      <span class="dot" id="syncDot"></span>
+    </button>
+    <button class="icon-btn" id="btnSettings" type="button" aria-label="Settings" title="Settings">&#9881;</button>
+  </div>
+</header>
+
+<div class="scorebar" id="progressBar" hidden>
+  <div class="score-main">
+    <span class="score-val" id="progVal">0</span>
+    <span class="score-tier" id="progTier">of 25 recorded</span>
+  </div>
+  <div class="score-side">
+    <span id="progMeta">25 left</span>
+    <span class="cov-track"><span class="cov-fill" id="progCov"></span></span>
+  </div>
+</div>
+
+<main id="main">
+
+  <!-- ---------------------------------------------------------------- home -->
+  <section class="screen" data-screen="home">
+    <div class="hero card">
+      <div class="hero-kicker">On-site record</div>
+      <h1>Factory visit report</h1>
+      <p class="muted">Capture the plant, the evidence and the findings. Export one PDF for HQ.</p>
+      <button class="btn primary block" id="btnNew" type="button">+ New factory visit</button>
+    </div>
+
+    <div class="section-head">
+      <h2>Visits</h2>
+      <input class="search" id="searchBox" type="search" placeholder="Search factory" autocomplete="off">
+    </div>
+    <div id="reportList" class="list"></div>
+    <div id="emptyState" class="empty" hidden>
+      <p>No visits yet.</p>
+      <p class="muted">Start with <b>New factory visit</b>. Everything stays on this device until you back up.</p>
+    </div>
+
+    <div class="section-head"><h2>Comments</h2></div>
+    <div class="card comment-card" id="commentCard">
+      <div class="comment-head" id="commentHead">No visit yet</div>
+      <textarea id="commentText" class="input" rows="4"
+        placeholder="Summary and comments for the most recent visit. This is what HQ reads first."></textarea>
+      <div class="comment-foot">
+        <span class="muted small" id="commentHint">Saved to the visit and printed as Summary and comments.</span>
+        <button class="link-btn" id="btnOpenComment" type="button" disabled>Open visit</button>
+      </div>
+    </div>
+    <div class="spacer"></div>
+  </section>
+
+  <!-- ---------------------------------------------------------------- edit -->
+  <section class="screen" data-screen="edit" hidden>
+    <div class="visit-head">
+      <input id="editFactory" class="visit-title" type="text" placeholder="Factory name" autocomplete="off">
+      <div class="visit-sub" id="editSub"></div>
+    </div>
+    <div id="formMount"></div>
+    <div class="bottom-actions">
+      <button class="btn" id="btnOpenPhotos" type="button">Photos <span class="count" id="photoCount">0</span></button>
+      <button class="btn primary" id="btnExport" type="button">Export PDF</button>
+    </div>
+    <div class="spacer tall"></div>
+  </section>
+
+  <!-- -------------------------------------------------------------- photos -->
+  <section class="screen" data-screen="photos" hidden>
+    <div class="card cover-card">
+      <div class="cover-banner" id="coverBanner">
+        <img id="coverImg" alt="" hidden>
+        <span class="cover-empty" id="coverEmpty">No cover photo yet</span>
+      </div>
+      <div class="cover-title">Cover photo<span class="cover-kind" id="coverKind"></span></div>
+      <p class="muted small">Factory gate or main building. This is the picture on the home screen, so you recognise the visit at a glance.</p>
+      <div class="row-actions">
+        <button class="btn primary" id="btnCoverPick" type="button">Take / choose</button>
+        <button class="btn" id="btnCoverClear" type="button">Use automatic</button>
+      </div>
+    </div>
+    <input id="coverInput" type="file" accept="image/*" hidden>
+
+    <div class="section-head">
+      <h2>Photos</h2>
+      <span class="muted" id="photoSummary"></span>
+    </div>
+    <div class="photo-add-row">
+      <button class="btn primary" id="btnAddPhoto" type="button">Take / add photo</button>
+      <select id="photoKind" class="input compact" aria-label="Photo category"></select>
+    </div>
+    <input id="fileInput" type="file" accept="image/*" multiple hidden>
+    <div id="photoGrid" class="photo-grid"></div>
+    <div class="spacer"></div>
+  </section>
+
+  <!-- ------------------------------------------------------------- preview -->
+  <section class="screen" data-screen="preview" hidden>
+    <div class="section-head">
+      <h2>Report PDF</h2>
+      <span class="muted" id="pdfMeta"></span>
+    </div>
+    <div class="preview-actions">
+      <button class="btn primary" id="btnDownload" type="button">Download PDF</button>
+      <button class="btn" id="btnShare" type="button">Share</button>
+    </div>
+    <iframe id="pdfFrame" class="pdf-frame" title="PDF preview"></iframe>
+    <p class="muted small">Text in this PDF can be selected and searched. Photos are embedded at 1600 px.</p>
+    <div class="spacer"></div>
+  </section>
+
+  <!-- ------------------------------------------------------------ settings -->
+  <section class="screen" data-screen="settings" hidden>
+    <div class="section-head"><h2>Author</h2></div>
+    <div class="card form-card">
+      <label class="field">
+        <span>Prepared by</span>
+        <input id="setAuthor" class="input" type="text" placeholder="Leo" autocomplete="off">
+      </label>
+      <p class="muted small">Printed on the cover and above the signature line. Stored only on this device.</p>
+      <div class="row-actions">
+        <button class="btn" id="btnSaveSettings" type="button">Save</button>
+      </div>
+      <p class="status-line" id="settingsStatus"></p>
+    </div>
+
+    <div class="section-head"><h2>Checklist items</h2></div>
+    <div class="card form-card">
+      <p class="muted small">Every visit uses these items. Rename them, change the hint, add your own, reorder or delete.
+        Recorded notes on existing visits stay untouched.</p>
+      <div id="checklistEditor" class="cl-editor"></div>
+      <div class="row-actions">
+        <button class="btn" id="btnResetChecklist" type="button">Reset to defaults</button>
+      </div>
+      <p class="status-line" id="checklistStatus"></p>
+    </div>
+
+    <div class="section-head"><h2>Form template</h2></div>
+    <div class="card form-card">
+      <p class="muted small">This app is not shower-specific. Rename the fields, rewrite the option lists, change
+        the record states and the photo categories to fit a hardware, faucet, tray or glass factory.
+        Recorded visits keep their data; only the wording changes.</p>
+      <div id="templateEditor" class="tpl-editor"></div>
+      <div class="row-actions">
+        <button class="btn" id="btnResetTemplate" type="button">Reset template to defaults</button>
+      </div>
+      <p class="status-line" id="templateStatus"></p>
+    </div>
+
+    <div class="section-head"><h2>Private data repository</h2></div>
+    <div class="card form-card">
+      <label class="field"><span>Owner</span>
+        <input id="setOwner" class="input" type="text" placeholder="nbleo" autocomplete="off" spellcheck="false"></label>
+      <label class="field"><span>Repository</span>
+        <input id="setRepo" class="input" type="text" placeholder="factory_reporter_data" autocomplete="off" spellcheck="false"></label>
+      <label class="field"><span>Branch</span>
+        <input id="setBranch" class="input" type="text" placeholder="main" autocomplete="off" spellcheck="false"></label>
+      <label class="field"><span>Personal access token</span>
+        <input id="setToken" class="input" type="password" placeholder="github_pat_..." autocomplete="off" spellcheck="false"></label>
+      <p class="muted small">
+        Fine-grained token with <b>Contents: Read and write</b> on the data repository only.
+        Stored in this browser's local database, never uploaded anywhere except api.github.com.
+      </p>
+      <div class="row-actions">
+        <button class="btn" id="btnTestConn" type="button">Test connection</button>
+      </div>
+    </div>
+
+    <div class="section-head"><h2>Diagnostics</h2></div>
+    <div class="card form-card">
+      <button class="btn block" id="btnDiagnose" type="button">Diagnose network</button>
+      <pre class="log" id="diagLog"></pre>
+    </div>
+
+    <div class="section-head"><h2>About</h2></div>
+    <div class="card form-card">
+      <div class="kv-line"><span>App version</span><b id="aboutApp">-</b></div>
+      <div class="kv-line"><span>Cache version</span><b id="aboutCache">-</b></div>
+      <div class="kv-line"><span>Checklist version</span><b id="aboutRules">-</b></div>
+      <div class="kv-line"><span>Device</span><b id="aboutDevice">-</b></div>
+    </div>
+    <div class="spacer"></div>
+  </section>
+
+  <!-- ---------------------------------------------------------------- sync -->
+  <section class="screen" data-screen="sync" hidden>
+    <div class="section-head"><h2>Backup</h2></div>
+    <div class="card form-card">
+      <div class="kv-line"><span>Target</span><b id="syncTarget">not configured</b></div>
+      <div class="kv-line"><span>Last backup</span><b id="syncLast">never</b></div>
+      <div class="kv-line"><span>Pending</span><b id="syncPending">-</b></div>
+      <div class="row-actions">
+        <button class="btn primary" id="btnBackupNow" type="button">Back up now</button>
+        <button class="btn" id="btnPull" type="button">Pull from repository</button>
+      </div>
+      <p class="muted small">Photos upload in batches of 12; a second backup skips what is already there.</p>
+    </div>
+    <div class="card form-card">
+      <div class="section-sub">Activity</div>
+      <pre class="log" id="syncLog"></pre>
+    </div>
+    <div class="spacer"></div>
+  </section>
+
+</main>
+
+<nav class="tabbar" id="tabbar">
+  <button class="tab" data-go="home" type="button"><span class="tab-ico">&#9776;</span>Visits</button>
+  <button class="tab" data-go="edit" type="button"><span class="tab-ico">&#9998;</span>Report</button>
+  <button class="tab" data-go="photos" type="button"><span class="tab-ico">&#9635;</span>Photos</button>
+  <button class="tab" data-go="sync" type="button"><span class="tab-ico">&#8635;</span>Backup</button>
+</nav>
+
+<div class="toast" id="toast" hidden></div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-card">
+    <h3 id="modalTitle">Title</h3>
+    <p id="modalText" class="muted"></p>
+    <div class="modal-actions">
+      <button class="btn" id="modalCancel" type="button">Cancel</button>
+      <button class="btn danger" id="modalOk" type="button">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/util.js"></script>
+<script src="js/db.js"></script>
+<script src="js/model.js"></script>
+<script src="js/rules.js"></script>
+<script src="js/photos.js"></script>
+<script src="js/form.js"></script>
+<script src="js/pdf.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
