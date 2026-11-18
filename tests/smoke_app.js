@@ -1,5 +1,5 @@
-/* Real-Chromium smoke test: boot, create a visit, record items, edit the
-   checklist, summary comments, PDF, persistence. */
+/* Real-Chromium smoke test: boot, create a visit, custom chips, business card,
+   checklist built from empty, template editing, summary comments, PDF. */
 const fs = require("fs");
 const path = require("path");
 const puppeteer = require("puppeteer");
@@ -45,11 +45,35 @@ function check(name, cond, extra) {
     const cl = await page.evaluate(() => ({
       sections: FRRules.sections().length,
       items: FRRules.itemIds().length,
-      first: FRRules.item("sampleRoom").no
+      visible: FRRules.visibleSections().length,
+      visibleIds: FRRules.visibleSections().map((s) => s.id),
+      numbering: FRRules.sections().filter((s) => !s.empty).map((s) => s.no).join(",")
     }));
     check("7 sections loaded", cl.sections === 7, String(cl.sections));
-    check("25 default items loaded", cl.items === 25, String(cl.items));
-    check("item numbering is derived", cl.first === "2.1", cl.first);
+    check("checklist is empty by default", cl.items === 0, String(cl.items));
+    check("empty sections are hidden", cl.visible === 4, cl.visibleIds.join(","));
+    check("section numbers skip the hidden ones", cl.numbering === "1,2,3,4", cl.numbering);
+
+    /* ------------------------------------------- fields removed / added */
+    const fields = await page.evaluate(() => ({
+      licence: FRRules.field("businessLicenseNo"),
+      address: FRRules.field("addressMatchesLicense"),
+      showroom: FRRules.field("showroomAreaSqm"),
+      markets: !!(FRRules.field("mainMarkets") || {}).options,
+      customers: (FRRules.field("mainCustomers") || {}).type,
+      card: (FRRules.field("businessCardIds") || {}).type,
+      marketsCustom: !!(FRRules.field("mainMarkets") || {}).allowCustom,
+      productsCustom: !!(FRRules.field("mainProducts") || {}).allowCustom,
+      processesCustom: !!(FRRules.field("inHouseProcesses") || {}).allowCustom
+    }));
+    check("business licence number is gone", fields.licence === null);
+    check("licence-address comparison is gone", fields.address === null);
+    check("sample room area is gone", fields.showroom === null);
+    check("main markets added", fields.markets === true);
+    check("main customers added", fields.customers === "textarea", fields.customers);
+    check("business card slot added", fields.card === "photos", fields.card);
+    check("own values allowed on products / markets / processes",
+      fields.productsCustom && fields.marketsCustom && fields.processesCustom);
 
     const noScorebar = await page.evaluate(() => ({
       hasScore: !!document.getElementById("scoreVal"),
@@ -62,12 +86,72 @@ function check(name, cond, extra) {
     await page.waitForFunction("window.FR.state().screen === 'edit'", { timeout: 8000 });
     check("new report opens editor", true);
 
+    const emptyBar = await page.evaluate(() => ({
+      tier: document.getElementById("progTier").textContent,
+      meta: document.getElementById("progMeta").textContent
+    }));
+    check("progress bar explains the empty checklist",
+      /items in the checklist/.test(emptyBar.tier) && /Settings/.test(emptyBar.meta),
+      emptyBar.tier + " / " + emptyBar.meta);
+
     await page.type("#editFactory", "Suzhou Bathware Co., Ltd");
     await page.type('#formMount input[data-field="cityProvince"]', "Suzhou, Jiangsu");
     await page.type('#formMount input[data-field="contactName"]', "Mr. Chen");
-    await page.type('#formMount input[data-field="employees"]', "120");
+    await page.type('#formMount textarea[data-field="mainCustomers"]', "IKEA (OEM), local distributors");
     await tap('#formMount [data-chip="shower_enclosure"]');
     await tap('#formMount [data-chip="tempering"]');
+
+    /* --------------------------------------------- a value of your own */
+    await tap('[data-chip-new="mainProducts"]');
+    await page.waitForSelector('[data-chip-text="mainProducts"]', { visible: true });
+    await page.type('[data-chip-text="mainProducts"]', "Bathroom mirrors");
+    await page.click('[data-chip-save="mainProducts"]');
+    await new Promise((r) => setTimeout(r, 250));
+
+    const custom = await page.evaluate(() => ({
+      list: window.FR.state().current.profile.mainProducts,
+      chips: Array.from(document.querySelectorAll('[data-chips="mainProducts"] .chip'))
+        .map((c) => c.textContent + ":" + c.getAttribute("aria-pressed")),
+      entryHidden: document.querySelector('[data-chip-entry="mainProducts"]').hidden
+    }));
+    check("own value is stored on the visit",
+      custom.list.indexOf("Bathroom mirrors") !== -1, JSON.stringify(custom.list));
+    check("own value shows as a selected chip",
+      custom.chips.indexOf("Bathroom mirrors:true") !== -1, custom.chips.join(" | "));
+    check("the entry row closes after adding", custom.entryHidden === true);
+
+    /* market chip through the same path, so both fields are covered */
+    await tap('[data-chip="germany"]');
+    await tap('#formMount [data-chip="cnc"]');
+
+    /* ------------------------------------------------ business card photo */
+    const card = await page.evaluate(async () => {
+      const c = document.createElement("canvas");
+      c.width = 1200; c.height = 700;
+      const x = c.getContext("2d");
+      x.fillStyle = "#f4f4f6"; x.fillRect(0, 0, 1200, 700);
+      x.strokeStyle = "#1F1FAF"; x.lineWidth = 8; x.strokeRect(60, 60, 1080, 580);
+      x.fillStyle = "#111"; x.font = "bold 44px sans-serif";
+      x.fillText("SUZHOU BATHWARE CO., LTD", 110, 160);
+      x.font = "30px sans-serif";
+      x.fillText("Mr. Chen - Export Manager", 110, 250);
+      x.fillText("+86 512 8888 6666", 110, 320);
+      const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.85));
+      await FRForm.addPhotoFiles([new File([blob], "card.jpg", { type: "image/jpeg" })],
+        { key: "businessCardIds" });
+      await window.FR.saveNow();
+      const rep = window.FR.state().current;
+      return {
+        ids: rep.profile.businessCardIds.length,
+        kind: (rep.photos[0] || {}).kind,
+        thumb: !!document.querySelector('.shot-thumb[src^="blob:"]'),
+        cover: FRModel.coverId(rep)
+      };
+    });
+    check("business card photo stored on the profile", card.ids === 1, String(card.ids));
+    check("card photo carries its own category", card.kind === "business_card", card.kind);
+    check("card thumbnail is shown in the form", card.thumb === true);
+    check("a card never becomes the cover photo", card.cover === "", card.cover);
 
     await page.evaluate(() => window.FR.saveNow());
     const afterFill = await page.evaluate(() => {
@@ -75,16 +159,58 @@ function check(name, cond, extra) {
       return {
         name: c.profile.factoryName,
         products: c.profile.mainProducts,
-        employees: c.facts.employees,
+        markets: c.profile.mainMarkets,
+        processes: c.facts.inHouseProcesses,
+        customers: c.profile.mainCustomers,
         id: c.id,
         author: c.meta.author
       };
     });
     check("factory name saved", afterFill.name === "Suzhou Bathware Co., Ltd", afterFill.name);
     check("chip selection saved", afterFill.products.indexOf("shower_enclosure") !== -1);
-    check("number field parsed", afterFill.employees === 120, String(afterFill.employees));
-    check("id became readable", /^20261113-suzhou-bathware/.test(afterFill.id), afterFill.id);
+    check("market chip saved", afterFill.markets.indexOf("germany") !== -1);
+    check("process chip saved", afterFill.processes.indexOf("cnc") !== -1);
+    check("customers text saved", /IKEA/.test(afterFill.customers), afterFill.customers);
+    check("id became readable", /^2026111\d-suzhou-bathware/.test(afterFill.id), afterFill.id);
     check("author defaults to Leo", afterFill.author === "Leo", afterFill.author);
+
+    /* ------------------------------------- build a checklist, then record it */
+    await page.evaluate(() => window.FR.show("settings"));
+    await new Promise((r) => setTimeout(r, 300));
+    const seeded = await page.evaluate(async () => {
+      document.querySelector('[data-cl-add="facilities"]').click();
+      await new Promise((r) => setTimeout(r, 300));
+      document.querySelector('[data-cl-add="facilities"]').click();
+      await new Promise((r) => setTimeout(r, 300));
+      const labels = document.querySelectorAll('#checklistEditor [data-cl-label]');
+      const last = labels[labels.length - 1];
+      last.value = "Sample room shows current models";
+      last.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 300));
+      return {
+        items: FRRules.sectionItems("facilities").length,
+        numbering: FRRules.sectionItems("facilities").map((i) => i.no).join(","),
+        label: FRRules.sectionItems("facilities")[1].label,
+        hiddenHint: /stays hidden/.test(document.querySelector('[data-cl-sec="quality"]').textContent)
+      };
+    });
+    check("items can be added from Settings", seeded.items === 2, String(seeded.items));
+    check("item numbers derive from the list", seeded.numbering === "2.1,2.2", seeded.numbering);
+    check("item wording is editable", /current models/.test(seeded.label), seeded.label);
+    check("empty section explains it stays hidden", seeded.hiddenHint === true);
+
+    const id = await page.evaluate(() => window.FR.state().current.id);
+    await page.evaluate((rid) => window.FR.openReport(rid), id);
+    await page.waitForFunction("window.FR.state().screen === 'edit'", { timeout: 8000 });
+    const inForm = await page.evaluate(() => ({
+      checks: document.querySelectorAll("#formMount [data-check]").length,
+      no: (document.querySelector("#formMount .check-no") || {}).textContent,
+      sections: Array.from(document.querySelectorAll("#formMount .sec")).map((s) => s.dataset.sec)
+    }));
+    check("new items appear in the form", inForm.checks === 2, String(inForm.checks));
+    check("form numbers the first new item 2.1", inForm.no === "2.1", inForm.no);
+    check("hidden sections stay out of the form",
+      inForm.sections.join(",") === "profile,facilities,commercial,comments", inForm.sections.join(","));
 
     /* ------------------------------------------------------- record, no score */
     await page.evaluate(() => window.FR.setAll("ok"));
@@ -95,23 +221,22 @@ function check(name, cond, extra) {
       left: document.getElementById("progMeta").textContent,
       evaluation: "evaluation" in window.FR.state().current
     }));
-    check("all items recorded", recorded.done === 25 && recorded.total === 25, recorded.done + "/" + recorded.total);
-    check("progress text follows records", recorded.prog === "25" && /All items/.test(recorded.left),
+    check("all items recorded", recorded.done === 2 && recorded.total === 2, recorded.done + "/" + recorded.total);
+    check("progress text follows records", recorded.prog === "2" && /All items/.test(recorded.left),
       recorded.prog + " " + recorded.left);
     check("no evaluation object is produced", recorded.evaluation === false);
 
     await page.evaluate(() => {
       const rep = window.FR.state().current;
-      rep.answers.en14428.state = "issue";
-      rep.answers.en14428.note = "No EN 14428 report for the offered model, only a summary sheet.";
+      const first = FRRules.sectionItems("facilities")[0].id;
+      FRModel.answer(rep, first).state = "issue";
+      FRModel.answer(rep, first).note = "Only three models on display, none of them the quoted one.";
       FRForm.refreshProgress();
     });
     const issueState = await page.evaluate(() => ({
-      state: window.FR.state().current.answers.en14428.state,
       done: FRModel.recordedCount(window.FR.state().current)
     }));
-    check("issue is a record, not a weighted score", issueState.state === "issue" && issueState.done === 25);
-
+    check("issue is a record, not a weighted score", issueState.done === 2);
     await page.evaluate(() => window.FR.saveNow());
 
     /* ------------------------------------------------------------ photo + pdf */
@@ -127,9 +252,10 @@ function check(name, cond, extra) {
       const file = new File([blob], "workshop.jpg", { type: "image/jpeg" });
       await window.FR.addPhoto(file, "workshop");
       const rep = window.FR.state().current;
-      return { photos: rep.photos.length, w: rep.photos[0].w, h: rep.photos[0].h };
+      const shot = rep.photos.filter((p) => p.kind === "workshop")[0];
+      return { photos: rep.photos.length, w: shot.w, h: shot.h };
     });
-    check("photo stored and compressed", photo.photos === 1, String(photo.photos));
+    check("photo stored and compressed", photo.photos === 2, String(photo.photos));
     check("photo resized to 1600 max", photo.w === 900 && photo.h === 600, photo.w + "x" + photo.h);
 
     /* ------------------------------------------------------------ cover photo */
@@ -141,12 +267,12 @@ function check(name, cond, extra) {
       stars: document.querySelectorAll("[data-set-cover]").length,
       kinds: document.querySelectorAll("#photoKind option").length
     }));
-    check("cover falls back to the first photo", cover0.img === true && cover0.stars === 1,
+    check("cover falls back to the plant photo", cover0.img === true && cover0.stars === 2,
       String(cover0.stars));
     check("cover shows the photo category", /Workshop/.test(cover0.kind), cover0.kind);
-    check("photo categories come from the template", cover0.kinds === 7, String(cover0.kinds));
+    check("photo categories come from the template", cover0.kinds === 8, String(cover0.kinds));
 
-    await tap("[data-set-cover]");
+    await tap('.photo-cell [data-set-cover]');
     await new Promise((r) => setTimeout(r, 350));
     const cover1 = await page.evaluate(() => ({
       id: window.FR.state().current.coverPhotoId,
@@ -158,12 +284,12 @@ function check(name, cond, extra) {
     await page.evaluate(() => {
       const el = document.querySelector('#formMount textarea[data-field="comments"]');
       el.scrollIntoView({ block: "center" });
-      el.value = "Clean plant, good glass line. EN 14428 report still missing for the new 8 mm range.";
+      el.value = "Clean plant, good glass line. Business card collected; EN 14428 still missing.";
       el.dispatchEvent(new Event("input", { bubbles: true }));
       return window.FR.saveNow();
     });
     const summary = await page.evaluate(() => window.FR.state().current.conclusion.comments);
-    check("summary saved on the visit", /EN 14428 report still missing/.test(summary), summary);
+    check("summary saved on the visit", /EN 14428 still missing/.test(summary), summary);
 
     const pdf = await page.evaluate(() => window.FR.buildPDF());
     fs.writeFileSync(path.join(OUT, "sample.pdf"), Buffer.from(pdf.base64, "base64"));
@@ -172,15 +298,21 @@ function check(name, cond, extra) {
     check("pdf header", txt.slice(0, 8) === "%PDF-1.4", txt.slice(0, 8));
     check("A4 media box", txt.indexOf("/MediaBox [0 0 595.28 841.89]") !== -1);
     check("Helvetica embedded as standard font", txt.indexOf("/BaseFont /Helvetica") !== -1);
-    check("photo uses DCTDecode", txt.indexOf("/DCTDecode") !== -1);
-    check("text is vector (Tj operators)", (txt.match(/ Tj ET/g) || []).length > 60,
+    check("photos use DCTDecode", txt.indexOf("/DCTDecode") !== -1);
+    check("text is vector (Tj operators)", (txt.match(/ Tj ET/g) || []).length > 40,
       String((txt.match(/ Tj ET/g) || []).length));
     check("no assessment score in the PDF", txt.indexOf("ASSESSMENT") === -1 && txt.indexOf("/ 100") === -1);
     check("no questions appendix", txt.indexOf("Questions and answers") === -1);
     check("summary printed in the PDF", txt.indexOf("Summary and comments") !== -1);
-    check("summary text carried into the PDF", txt.indexOf("EN 14428 report still missing") !== -1);
+    check("summary text carried into the PDF", txt.indexOf("EN 14428 still missing") !== -1);
+    check("business card printed in the profile", txt.indexOf("Contact business card") !== -1);
+    check("own product value printed", txt.indexOf("Bathroom mirrors") !== -1);
+    check("main customers printed", txt.indexOf("IKEA") !== -1);
+    check("removed licence fields stay out of the PDF",
+      txt.indexOf("Business licence") === -1 && txt.indexOf("matches licence") === -1);
+    check("checklist section printed", txt.indexOf("Finding") !== -1);
     check("cover says prepared by Leo", txt.indexOf("Prepared by Leo") !== -1);
-    check("page count reported", pdf.pages >= 4, String(pdf.pages));
+    check("page count reported", pdf.pages >= 3, String(pdf.pages));
 
     const pagesInFile = (txt.match(/\/Type \/Page[^s]/g) || []).length;
     check("page objects match", pagesInFile === pdf.pages, pagesInFile + " vs " + pdf.pages);
@@ -202,54 +334,12 @@ function check(name, cond, extra) {
 
     check("file name is readable", /^FactoryVisit_Suzhou-Bathware/.test(pdf.name), pdf.name);
 
-    /* ------------------------------------------------------ checklist editing */
+    /* ------------------------------------------------------ template editing */
     await page.evaluate(() => window.FR.show("settings"));
     await new Promise((r) => setTimeout(r, 300));
     const setAuthor = await page.evaluate(() => document.getElementById("setAuthor").value);
     check("settings shows author", setAuthor === "Leo", setAuthor);
 
-    const edited = await page.evaluate(async () => {
-      const input = document.querySelector('#checklistEditor [data-cl-label="sampleRoom"]');
-      input.value = "Sample room - current models on display";
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-      await new Promise((r) => setTimeout(r, 200));
-      document.querySelector('[data-cl-add="facilities"]').click();
-      await new Promise((r) => setTimeout(r, 300));
-      return {
-        items: FRRules.sectionItems("facilities").length,
-        label: FRRules.item("sampleRoom").label,
-        customized: FRRules.customized()
-      };
-    });
-    check("item text is editable", edited.label === "Sample room - current models on display", edited.label);
-    check("custom item can be added", edited.items === 5, String(edited.items));
-    check("custom checklist is persisted", edited.customized === true);
-
-    await page.reload({ waitUntil: "networkidle0" });
-    await page.waitForFunction("window.FR && window.FR.ready === true", { timeout: 15000 });
-    const survived = await page.evaluate(() => ({
-      items: FRRules.sectionItems("facilities").length,
-      label: FRRules.item("sampleRoom").label
-    }));
-    check("edits survive reload", survived.items === 5 && /current models/.test(survived.label),
-      survived.items + " / " + survived.label);
-
-    await page.evaluate(() => window.FR.show("settings"));
-    await new Promise((r) => setTimeout(r, 250));
-    await page.click("#btnResetChecklist");
-    await page.waitForFunction("!document.getElementById('modal').hidden");
-    await page.click("#modalOk");
-    await new Promise((r) => setTimeout(r, 400));
-    const reset = await page.evaluate(() => ({
-      items: FRRules.sectionItems("facilities").length,
-      label: FRRules.item("sampleRoom").label
-    }));
-    check("reset restores defaults", reset.items === 4 && /representative/.test(reset.label),
-      reset.items + " / " + reset.label);
-
-    /* ---------------------------------------------------- template editing */
-    await page.evaluate(() => window.FR.show("settings"));
-    await new Promise((r) => setTimeout(r, 300));
     const tpl1 = await page.evaluate(async () => {
       const group = document.querySelector('#templateEditor details[data-dtl="opt-mainProducts"]');
       group.open = true;
@@ -270,8 +360,8 @@ function check(name, cond, extra) {
       stateInput.dispatchEvent(new Event("change", { bubbles: true }));
       await new Promise((r) => setTimeout(r, 250));
 
-      const secInput = document.querySelector('#templateEditor [data-tpl-section="quality"]');
-      secInput.value = "Quality systems";
+      const secInput = document.querySelector('#templateEditor [data-tpl-section="facilities"]');
+      secInput.value = "Plant and capacity";
       secInput.dispatchEvent(new Event("change", { bubbles: true }));
       await new Promise((r) => setTimeout(r, 300));
 
@@ -280,7 +370,7 @@ function check(name, cond, extra) {
         count: FRRules.field("mainProducts").options.length,
         fieldLabel: FRRules.field("employees").label,
         stateLabel: FRRules.states()[0].label,
-        sectionTitle: FRRules.section("quality").title,
+        sectionTitle: FRRules.section("facilities").title,
         customized: FRRules.customizedTemplate()
       };
     });
@@ -288,28 +378,35 @@ function check(name, cond, extra) {
     check("option can be added", tpl1.count === 10, String(tpl1.count));
     check("field label is editable", tpl1.fieldLabel === "Headcount", tpl1.fieldLabel);
     check("record state label is editable", tpl1.stateLabel === "Good", tpl1.stateLabel);
-    check("section title is editable", tpl1.sectionTitle === "Quality systems", tpl1.sectionTitle);
+    check("section title is editable", tpl1.sectionTitle === "Plant and capacity", tpl1.sectionTitle);
     check("template override is stored", tpl1.customized === true);
 
     await page.reload({ waitUntil: "networkidle0" });
     await page.waitForFunction("window.FR && window.FR.ready === true", { timeout: 15000 });
     const tpl2 = await page.evaluate(() => ({
       opt: FRRules.field("mainProducts").options[0][1],
-      fieldLabel: FRRules.field("employees").label
+      fieldLabel: FRRules.field("employees").label,
+      items: FRRules.sectionItems("facilities").length
     }));
     check("template survives reload", tpl2.opt === "Shower cabin" && tpl2.fieldLabel === "Headcount",
       tpl2.opt + " / " + tpl2.fieldLabel);
+    check("checklist survives reload", tpl2.items === 2, String(tpl2.items));
 
     await page.evaluate(() => window.FR.openReport(document.querySelector("#reportList .list-item").dataset.id));
     await page.waitForFunction("window.FR.state().screen === 'edit'", { timeout: 8000 });
     const formLabels = await page.evaluate(() => ({
       chip: (document.querySelector('#formMount [data-chip="shower_enclosure"]') || {}).textContent,
       field: (document.querySelector('#formMount [data-field="employees"]').closest(".field").querySelector("span") || {}).textContent,
-      state: (document.querySelector('#formMount [data-check-state="sampleRoom"]') || {}).textContent
+      state: (document.querySelector('#formMount [data-check-state]') || {}).textContent,
+      customKept: (document.querySelector('#formMount [data-chip="Bathroom mirrors"]') || {}).getAttribute
+        ? document.querySelector('#formMount [data-chip="Bathroom mirrors"]').getAttribute("aria-pressed")
+        : null
     }));
     check("form uses the edited option", formLabels.chip === "Shower cabin", formLabels.chip);
     check("form uses the edited field label", /Headcount/.test(formLabels.field), formLabels.field);
     check("form uses the edited state label", formLabels.state === "Good", formLabels.state);
+    check("own product value still selected after reload", formLabels.customKept === "true",
+      String(formLabels.customKept));
 
     const pdf2 = await page.evaluate(() => window.FR.buildPDF());
     const txt2 = Buffer.from(pdf2.base64, "base64").toString("latin1");
@@ -326,18 +423,18 @@ function check(name, cond, extra) {
       opt: FRRules.field("mainProducts").options[0][1],
       fieldLabel: FRRules.field("employees").label,
       stateLabel: FRRules.states()[0].label,
-      sectionTitle: FRRules.section("quality").title
+      sectionTitle: FRRules.section("facilities").title
     }));
     check("template reset restores defaults",
       tpl3.opt === "Shower enclosure" && /Employees/.test(tpl3.fieldLabel) &&
-      tpl3.stateLabel === "OK" && tpl3.sectionTitle === "Quality control",
+      tpl3.stateLabel === "OK" && tpl3.sectionTitle === "Scale and facilities",
       tpl3.opt + " / " + tpl3.fieldLabel + " / " + tpl3.stateLabel + " / " + tpl3.sectionTitle);
 
     /* -------------------------------------------------------- home comments */
     await page.evaluate(() => window.FR.show("home"));
     await new Promise((r) => setTimeout(r, 400));
     const homeComment = await page.evaluate(() => document.getElementById("commentText").value);
-    check("home shows the latest summary", /EN 14428 report still missing/.test(homeComment), homeComment);
+    check("home shows the latest summary", /EN 14428 still missing/.test(homeComment), homeComment);
 
     await page.evaluate(() => {
       const box = document.getElementById("commentText");
@@ -361,7 +458,7 @@ function check(name, cond, extra) {
       thumb: (document.querySelector("#reportList [data-cover-img]") || {}).src || ""
     }));
     check("report persists after reload", list.count === 1, String(list.count));
-    check("list badge shows records", list.badge === "25/25", list.badge);
+    check("list badge shows records", list.badge === "2/2", list.badge);
     check("home list shows the cover photo", /^blob:/.test(list.thumb), list.thumb);
     check("comment persists after reload", /Follow-up: request/.test(list.comment), list.comment);
 
@@ -371,10 +468,24 @@ function check(name, cond, extra) {
     check("list opens the report", await page.evaluate(() => window.FR.state().screen === "edit"));
     await page.screenshot({ path: path.join(OUT, "edit.png"), fullPage: false });
 
+    /* ------------------------------------------------- clear the checklist */
+    await page.evaluate(() => window.FR.show("settings"));
+    await new Promise((r) => setTimeout(r, 250));
+    await page.click("#btnResetChecklist");
+    await page.waitForFunction("!document.getElementById('modal').hidden");
+    await page.click("#modalOk");
+    await new Promise((r) => setTimeout(r, 400));
+    const cleared = await page.evaluate(() => ({
+      items: FRRules.itemIds().length,
+      visible: FRRules.visibleSections().length
+    }));
+    check("clearing empties the checklist", cleared.items === 0, String(cleared.items));
+    check("sections hide again after clearing", cleared.visible === 4, String(cleared.visible));
+
     check("no page errors", errors.length === 0, errors.join(" | "));
   } catch (e) {
     fail++;
-    console.log("  FAIL exception: " + e.message);
+    console.log("  FAIL exception: " + e.message + "\n" + (e.stack || ""));
   } finally {
     await browser.close();
   }

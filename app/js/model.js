@@ -2,7 +2,7 @@
 window.FRModel = (function () {
   "use strict";
 
-  var APP_VERSION = "2.1.0";
+  var APP_VERSION = "2.2.0";
   var SCHEMA = 2;
 
   function makeId(visitDate, factoryName) {
@@ -25,14 +25,14 @@ window.FRModel = (function () {
       meta: { author: "" },
       profile: {
         factoryName: "", cityProvince: "", visitDate: visit, contactName: "",
-        contactRole: "", phone: "", email: "", businessLicenseNo: "",
-        addressMatchesLicense: "unknown", mainProducts: [],
+        contactRole: "", phone: "", email: "", businessCardIds: [],
+        mainProducts: [], mainMarkets: [], mainCustomers: "",
         annualOutputValue: null, annualOutputCurrency: "EUR",
         photoIds: []
       },
       facts: {
         employees: null, qcStaff: null, factoryAreaSqm: null, workshopAreaSqm: null,
-        showroomAreaSqm: null, buildingsOwned: "", assemblyLines: null,
+        buildingsOwned: "", assemblyLines: null,
         monthlyCapacity: null, inHouseProcesses: []
       },
       answers: {},
@@ -124,7 +124,8 @@ window.FRModel = (function () {
   function statusOf(report) {
     var total = totalItems();
     if (requiredMissing(report).length) return "draft";
-    if (!total) return "draft";
+    /* no checklist items in the template: the fields are the whole record */
+    if (!total) return "complete";
     return recordedCount(report) === total ? "complete" : "draft";
   }
 
@@ -155,7 +156,8 @@ window.FRModel = (function () {
   }
 
   /* The photo that identifies the visit on the home screen: the chosen cover,
-     else the first factory photo, else the first photo at all. */
+     else the first factory photo, else the first photo that is not a
+     business card (a card is evidence, not a picture of the plant). */
   function coverId(report) {
     var list = (report && report.photos) || [];
     var has = function (id) {
@@ -164,7 +166,8 @@ window.FRModel = (function () {
     if (report && report.coverPhotoId && has(report.coverPhotoId)) return report.coverPhotoId;
     var factory = list.filter(function (p) { return p.kind === "factory"; })[0];
     if (factory) return factory.id;
-    return list.length ? list[0].id : "";
+    var shot = list.filter(function (p) { return p.kind !== "business_card"; })[0];
+    return shot ? shot.id : "";
   }
 
   function displayName(report) {

@@ -1,5 +1,5 @@
 /* Offline shell. Bump CACHE together with APP_VERSION on every release. */
-const CACHE = "factory-reporter-v2.1.0";
+const CACHE = "factory-reporter-v2.2.0";
 
 const SHELL = [
   "./",

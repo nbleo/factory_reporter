@@ -189,7 +189,7 @@ function check(name, cond, extra) {
     check("index.json written", !!state.index && state.index.reports.length === 1,
       JSON.stringify(state.index && state.index.reports.length));
     check("index carries the record count",
-      state.index && state.index.reports[0].recorded === 25 && state.index.reports[0].itemCount === 25,
+      state.index && state.index.reports[0].recorded === 0 && state.index.reports[0].itemCount === 0,
       String(state.index && state.index.reports[0].recorded));
 
     await page.screenshot({ path: path.join(OUT, "sync.png") });

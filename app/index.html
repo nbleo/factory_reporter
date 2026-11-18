@@ -33,10 +33,10 @@
 <div class="scorebar" id="progressBar" hidden>
   <div class="score-main">
     <span class="score-val" id="progVal">0</span>
-    <span class="score-tier" id="progTier">of 25 recorded</span>
+    <span class="score-tier" id="progTier">of 0 recorded</span>
   </div>
   <div class="score-side">
-    <span id="progMeta">25 left</span>
+    <span id="progMeta">Add them in Settings</span>
     <span class="cov-track"><span class="cov-fill" id="progCov"></span></span>
   </div>
 </div>
@@ -150,11 +150,13 @@
 
     <div class="section-head"><h2>Checklist items</h2></div>
     <div class="card form-card">
-      <p class="muted small">Every visit uses these items. Rename them, change the hint, add your own, reorder or delete.
+      <p class="muted small">The default checklist is empty on purpose - every factory and every product line is
+        checked differently. Add the items you actually walk through here (quality, compliance, testing, commercial),
+        rename them, change the hint or reorder them. A section with no item stays hidden in the form.
         Recorded notes on existing visits stay untouched.</p>
       <div id="checklistEditor" class="cl-editor"></div>
       <div class="row-actions">
-        <button class="btn" id="btnResetChecklist" type="button">Reset to defaults</button>
+        <button class="btn" id="btnResetChecklist" type="button">Clear checklist</button>
       </div>
       <p class="status-line" id="checklistStatus"></p>
     </div>
@@ -163,6 +165,8 @@
     <div class="card form-card">
       <p class="muted small">This app is not shower-specific. Rename the fields, rewrite the option lists, change
         the record states and the photo categories to fit a hardware, faucet, tray or glass factory.
+        Lists that show as chips also accept a value typed in the form ("+ Other"), so the visit can
+        record something the template does not know yet.
         Recorded visits keep their data; only the wording changes.</p>
       <div id="templateEditor" class="tpl-editor"></div>
       <div class="row-actions">

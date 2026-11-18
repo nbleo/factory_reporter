@@ -71,7 +71,7 @@ function check(name, cond, extra) {
       return { size: res.size, pages: res.pages };
     });
     check("PDF builds offline", offlinePdf.size > 2000, String(offlinePdf.size));
-    check("offline PDF has pages", offlinePdf.pages >= 3, String(offlinePdf.pages));
+    check("offline PDF has pages", offlinePdf.pages >= 2, String(offlinePdf.pages));
 
     await page.screenshot({ path: path.join(OUT, "offline.png") });
     await page.setOfflineMode(false);

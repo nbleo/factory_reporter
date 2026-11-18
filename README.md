@@ -3,17 +3,27 @@
 Offline-first factory visit reports, written on site and exported as one A4 PDF.
 
 - English UI, mobile first, works offline as a PWA (no build step, no dependencies).
-- 7 sections, 25 default checklist items, each recorded as OK / Partly / Issue /
-  N/A with a note and optional photos. Nothing is scored.
+- 7 sections, and **an empty checklist by default**: the factory profile and the
+  scale/facilities fields are filled in, while every checklist item is yours to
+  write in Settings. A section with no item stays hidden in the form and in the
+  PDF, so a fresh install never prints somebody else's questions.
+- Items are records, not scores: OK / Partly / Issue / N/A plus a note and
+  photos. The progress bar counts records.
 - **Cover photo**: the factory gate or main building. It becomes the thumbnail on
   the home screen, so a visit is recognised at a glance, and it is printed on the
-  cover of the PDF.
+  cover of the PDF. Business-card photos are kept out of that fallback.
+- **Business card**: photograph the card of the person you actually talk to. It
+  prints in the factory profile, next to the contact it belongs to.
+- **Own values**: main products, main markets and in-house processes carry a
+  "+ Other" chip, so a product that is not on the list can simply be typed in.
+  It is stored on the visit only - the template stays clean.
+- Profile also records main markets and main customers / brands. There is no
+  business-licence number and no licence-address comparison.
 - **Editable template**: section titles, field labels, every option list (products,
-  in-house processes, contact roles, export markets, buildings…), the four record
-  states and the photo categories can all be renamed, reordered, extended or
+  markets, in-house processes, contact roles, export markets, buildings…), the four
+  record states and the photo categories can all be renamed, reordered, extended or
   deleted in Settings. The defaults are a shower-enclosure factory; retune them
   in a minute for a hardware, faucet or glass factory.
-- Checklist wording, add/delete/reorder and "reset to defaults" live in Settings.
 - Camera import with client-side resize, summary comments on the home screen,
   one-tap PDF with cover, findings tables, summary and photo appendix.
 - Records go to a separate **private** repository through a fine-grained token;
