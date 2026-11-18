@@ -557,7 +557,7 @@ window.FRPDF = (function () {
 
     /* contents - fills the cover and helps HQ navigate */
     var cy = boxY - 34;
-    var secs = FRRules.sections();
+    var secs = FRRules.visibleSections();
     var contentsDrawn = false;
     if (cy - secs.length * 15 > (cover ? 268 : 118)) {
       contentsDrawn = true;
@@ -609,19 +609,94 @@ window.FRPDF = (function () {
     return FRRules.field(k);
   }
 
+  /* Returns how many fields actually carried something, so an all-empty
+     section can say so instead of printing a bare heading. */
   function buildSectionFields(L, secId) {
     var sec = FRRules.section(secId);
-    if (!sec) return;
-    (sec.fields || []).concat(sec.tailFields || []).forEach(function (f) {
+    if (!sec) return 0;
+    var all = (sec.fields || []).concat(sec.tailFields || []);
+    /* a lone free-text field is labelled by the section heading itself */
+    var many = all.length > 1;
+    var drawn = 0;
+
+    all.forEach(function (f) {
+      if (f.type === "photos") {
+        if (drawPhotosField(L, f)) drawn += 1;
+        return;
+      }
       var v = fieldValue(f, L._report);
       if (v === "" && !f.required) return;
+      drawn += 1;
       if (f.type === "textarea") {
-        L.need(26);
+        var lines = L.wrap(String(v), CONTENT_W, 9.5, false);
+        L.need((many ? 15 : 0) + 9 + lines.length * 13 + 4);
+        if (many) {
+          L.text(f.label, M.l, L.y - 9, { size: 8.5, color: MUTED });
+          L.y -= 15;
+        }
+        L.y -= 9;                       /* kv rows sit on a y - 9 baseline */
         L.para(String(v), { size: 9.5, color: TEXT, leading: 13 });
+        L.y -= 4;
       } else {
         L.kv(f.label, v);
       }
     });
+    return drawn;
+  }
+
+  /* Photo slots on the report itself (the contact's business card). The
+     images are pre-loaded before layout so this stays synchronous. */
+  function drawPhotosField(L, f) {
+    var ids = FRModel.getPath(L._report, f.store + "." + f.k);
+    if (!Array.isArray(ids) || !ids.length) return false;
+    var imgs = ids.map(function (id) { return (L._images || {})[id]; }).filter(Boolean);
+    if (!imgs.length) return false;
+
+    L.need(34);
+    L.text(f.label, M.l, L.y - 9, { size: 8.5, color: MUTED });
+    L.y -= 17;
+
+    var gap = 10, cols = 2, cellW = (CONTENT_W - gap) / cols, maxH = 150;
+    var i, k;
+    for (i = 0; i < imgs.length; i += cols) {
+      var row = imgs.slice(i, i + cols);
+      var dims = [], h = 0;
+      for (k = 0; k < row.length; k++) {
+        var sc = Math.min(cellW / row[k].w, maxH / row[k].h);
+        var d = { im: row[k], w: row[k].w * sc, h: row[k].h * sc };
+        h = Math.max(h, d.h);
+        dims.push(d);
+      }
+      L.need(h + 12);
+      for (k = 0; k < dims.length; k++) {
+        var x = M.l + k * (cellW + gap);
+        var y = L.y - h;
+        L.op(n(0.5) + " w " + rgb(LINE) + " RG " + n(x) + " " + n(y) + " " +
+          n(cellW) + " " + n(h) + " re S\n");
+        L.drawImage(L.addImage(dims[k].im.bytes, dims[k].im.w, dims[k].im.h),
+          x + (cellW - dims[k].w) / 2, y + (h - dims[k].h) / 2, dims[k].w, dims[k].h);
+      }
+      L.y -= h + 10;
+    }
+    return true;
+  }
+
+  async function loadFieldPhotos(L, report) {
+    L._images = {};
+    var wanted = [];
+    FRRules.sections().forEach(function (sec) {
+      (sec.fields || []).concat(sec.tailFields || []).forEach(function (f) {
+        if (f.type !== "photos") return;
+        var ids = FRModel.getPath(report, f.store + "." + f.k);
+        if (Array.isArray(ids)) ids.forEach(function (id) { wanted.push(id); });
+      });
+    });
+    for (var i = 0; i < wanted.length; i++) {
+      var ph = await FRDB.get("photos", wanted[i]);
+      if (!ph || !ph.blob) continue;
+      var buf = await ph.blob.arrayBuffer();
+      L._images[wanted[i]] = { bytes: new Uint8Array(buf), w: ph.w, h: ph.h };
+    }
   }
 
   function answerOf(report, itemId) {
@@ -673,19 +748,29 @@ window.FRPDF = (function () {
     }
     buildCover(L, report, opts, cover);
 
-    /* ---- 1..7, data driven so an edited checklist flows straight through */
+    /* images referenced by fields (business cards) before anything is laid out */
+    await loadFieldPhotos(L, report);
+
+    /* ---- 1..7, data driven so an edited checklist flows straight through.
+       Sections with no field and no item are skipped, exactly as in the form. */
     var first = true;
-    FRRules.sections().forEach(function (sec) {
+    FRRules.visibleSections().forEach(function (sec) {
       if (first) { L.newPage(sec.no + "  " + sec.title); first = false; }
       L.h2(sec.no, sec.title);
-      buildSectionFields(L, sec.id);
+      var drawn = buildSectionFields(L, sec.id);
       var items = sectionItems(report, sec.id);
       if (items.length) {
         L.y -= 4;
         L.checkTable(items);
       }
-      if (sec.id === "comments" && !String(report.conclusion.comments || "").trim()) {
-        L.para("No summary written for this visit.", { size: 9, color: MUTED });
+      if (sec.id === "comments") {
+        if (!String(report.conclusion.comments || "").trim()) {
+          L.para("No summary written for this visit.", { size: 9, color: MUTED });
+        }
+      } else if (!drawn && !items.length) {
+        /* the heading is worth keeping - HQ can see the section was visited
+           and left blank, rather than wondering whether it exists */
+        L.para("Nothing recorded in this section.", { size: 9, color: MUTED });
       }
     });
 
@@ -720,7 +805,10 @@ window.FRPDF = (function () {
   }
 
   async function buildPhotos(L, report) {
-    var metas = (report.photos || []).filter(function (p) { return p && p.id; });
+    /* business cards are printed in the factory profile, not a second time here */
+    var metas = (report.photos || []).filter(function (p) {
+      return p && p.id && p.kind !== "business_card";
+    });
     if (!metas.length) return;
 
     L.newPage("Appendix A  Photo record");

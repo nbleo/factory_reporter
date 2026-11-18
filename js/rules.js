@@ -132,14 +132,26 @@ window.FRRules = (function () {
         tailFields: (sec.tailFields || []).map(field),
         items: items
       });
+      return out;
+    });
 
-      items.forEach(function (it, i) {
+    /* Section numbers are derived, and only sections that carry something
+       count: an empty section is hidden in the form and in the PDF, so it
+       must not leave a gap in the numbering. Item numbers derive from the
+       position in the list, never from stored data. */
+    var shown = 0;
+    sections.forEach(function (sec) {
+      var hasFields = (sec.fields || []).length + (sec.tailFields || []).length > 0;
+      sec.empty = !(hasFields || (sec.items || []).length > 0);
+      if (sec.empty) { sec.no = ""; return; }
+      shown += 1;
+      sec.no = String(shown);
+      (sec.items || []).forEach(function (it, i) {
         it.no = sec.no + "." + (i + 1);
         it.section = sec.id;
-        it.sectionTitle = out.title;
+        it.sectionTitle = sec.title;
         itemsById[it.id] = it;
       });
-      return out;
     });
   }
 
@@ -147,6 +159,12 @@ window.FRRules = (function () {
   function data() { return R; }
   function version() { return R && R.version; }
   function sectionsView() { return sections; }
+
+  /* Sections that actually carry a field or an item - the form and the PDF
+     skip the rest, so an untouched default template prints nothing. */
+  function visibleSections() {
+    return sections.filter(function (s) { return !s.empty; });
+  }
   function states() { return tpl ? tpl.states : []; }
   function photoKinds() { return tpl ? tpl.photoKinds : []; }
 
@@ -406,6 +424,7 @@ window.FRRules = (function () {
     data: data,
     version: version,
     sections: sectionsView,
+    visibleSections: visibleSections,
     section: section,
     states: states,
     photoKinds: photoKinds,

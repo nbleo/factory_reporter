@@ -1,5 +1,5 @@
 {
-  "version": "2.1.0",
+  "version": "2.2.0",
   "language": "en",
   "states": [
     {
@@ -43,6 +43,10 @@
     [
       "product",
       "Product"
+    ],
+    [
+      "business_card",
+      "Business card"
     ],
     [
       "other",
@@ -131,30 +135,12 @@
           "store": "profile"
         },
         {
-          "k": "businessLicenseNo",
-          "label": "Business licence no.",
-          "type": "text",
-          "store": "profile"
-        },
-        {
-          "k": "addressMatchesLicense",
-          "label": "Visit address matches licence",
-          "type": "select",
+          "k": "businessCardIds",
+          "label": "Contact business card",
+          "type": "photos",
           "store": "profile",
-          "options": [
-            [
-              "yes",
-              "Yes"
-            ],
-            [
-              "no",
-              "No - explain"
-            ],
-            [
-              "unknown",
-              "Not checked"
-            ]
-          ]
+          "photoKind": "business_card",
+          "hint": "Photograph the card of the person you actually talk to."
         },
         {
           "k": "mainProducts",
@@ -162,6 +148,7 @@
           "type": "chips",
           "store": "profile",
           "required": true,
+          "allowCustom": true,
           "options": [
             [
               "shower_enclosure",
@@ -200,6 +187,55 @@
               "Other"
             ]
           ]
+        },
+        {
+          "k": "mainMarkets",
+          "label": "Main markets",
+          "type": "chips",
+          "store": "profile",
+          "allowCustom": true,
+          "options": [
+            [
+              "germany",
+              "Germany"
+            ],
+            [
+              "eu",
+              "Rest of EU"
+            ],
+            [
+              "uk",
+              "UK"
+            ],
+            [
+              "na",
+              "North America"
+            ],
+            [
+              "me",
+              "Middle East"
+            ],
+            [
+              "asia",
+              "Asia"
+            ],
+            [
+              "au",
+              "Australia"
+            ],
+            [
+              "domestic",
+              "Domestic"
+            ]
+          ]
+        },
+        {
+          "k": "mainCustomers",
+          "label": "Main customers / brands",
+          "type": "textarea",
+          "store": "profile",
+          "rows": 3,
+          "placeholder": "e.g. IKEA (OEM), Hansgrohe, local distributors - who they actually ship to"
         },
         {
           "k": "annualOutputValue",
@@ -250,13 +286,6 @@
           "min": 0
         },
         {
-          "k": "showroomAreaSqm",
-          "label": "Sample room area (m2)",
-          "type": "number",
-          "store": "facts",
-          "min": 0
-        },
-        {
           "k": "buildingsOwned",
           "label": "Buildings",
           "type": "select",
@@ -295,6 +324,7 @@
           "label": "In-house processes",
           "type": "chips",
           "store": "facts",
+          "allowCustom": true,
           "options": [
             [
               "glass_cutting",
@@ -342,153 +372,25 @@
             ]
           ]
         }
-      ],
-      "items": [
-        {
-          "id": "sampleRoom",
-          "label": "Sample room available and representative",
-          "hint": "Walk the sample room yourself; the displayed models must match what is quoted.",
-          "evidence": "Photo of the sample room and model labels"
-        },
-        {
-          "id": "workshopLayout",
-          "label": "Workshop layout, 5S and material flow",
-          "hint": "Look for separated dirty and clean zones, WIP racks, and a one-way flow from glass to packing.",
-          "evidence": "Photos of each workshop; sketch of the material flow"
-        },
-        {
-          "id": "warehouse",
-          "label": "Finished-goods warehouse organised and protected",
-          "hint": "Check stacking height, humidity, and whether finished goods are protected from water and dust.",
-          "evidence": "Photo of the finished-goods area"
-        },
-        {
-          "id": "maintenance",
-          "label": "Preventive maintenance for key machines",
-          "hint": "Ask for the maintenance log of the tempering furnace and the CNC centres.",
-          "evidence": "Maintenance schedule and the last three months of records"
-        }
       ]
     },
     {
       "id": "quality",
       "no": "3",
       "title": "Quality control",
-      "kind": "checks",
-      "items": [
-        {
-          "id": "qms",
-          "label": "ISO 9001 certified - copy seen, scope matches",
-          "hint": "Check the certificate number, expiry date, and whether the scope covers shower enclosures and not only trading.",
-          "evidence": "Certificate copy and an IAF CertSearch screenshot"
-        },
-        {
-          "id": "iqc",
-          "label": "Incoming inspection for glass, profiles and hardware",
-          "hint": "Ask to see today's incoming records, not a blank template.",
-          "evidence": "IQC records for the last three lots"
-        },
-        {
-          "id": "inProcess",
-          "label": "In-process and first-article inspection",
-          "hint": "Ask what happens after a tooling change or a new profile.",
-          "evidence": "First-article report and in-process check sheet"
-        },
-        {
-          "id": "finalInspection",
-          "label": "Final inspection to an AQL plan with records",
-          "hint": "Ask for the AQL plan, the sampling level and the last inspection report.",
-          "evidence": "Final inspection report with AQL level"
-        },
-        {
-          "id": "calibration",
-          "label": "Measuring and test equipment calibrated",
-          "hint": "Look for calibration labels and certificates on calipers, tape measures and test benches.",
-          "evidence": "Calibration certificates and a photo of the labels"
-        },
-        {
-          "id": "traceability",
-          "label": "Batch traceability (marking and records)",
-          "hint": "Pick one finished carton and try to trace the glass batch and the assembly date.",
-          "evidence": "Batch record and carton label"
-        }
-      ]
+      "kind": "checks"
     },
     {
       "id": "compliance",
       "no": "4",
       "title": "Product and standards compliance",
-      "kind": "checks",
-      "items": [
-        {
-          "id": "en14428",
-          "label": "EN 14428 type-test report for the offered models",
-          "hint": "Ask for the full test report for the exact models offered, not a summary certificate.",
-          "evidence": "Test report: test house, report number, date, model reference"
-        },
-        {
-          "id": "en12150",
-          "label": "Tempered glass to EN 12150 with fragmentation records",
-          "hint": "Ask for the EN 12150 report and the fragmentation test record, and confirm the glass supplier.",
-          "evidence": "EN 12150 report, fragmentation record, glass supplier name"
-        },
-        {
-          "id": "ceMarking",
-          "label": "CE marking and Declaration of Performance",
-          "hint": "Check that the manufacturer name on the DoP matches the factory, not a trading company.",
-          "evidence": "DoP document and a photo of the CE label"
-        },
-        {
-          "id": "glassControl",
-          "label": "Glass thickness, edge quality and hole control",
-          "hint": "Check the thickness range, edge polishing, and that holes are drilled before tempering.",
-          "evidence": "Glass specification and photos of the edge and drilling"
-        },
-        {
-          "id": "hardwareCorrosion",
-          "label": "Hardware corrosion resistance (EN 1670 / NSS)",
-          "hint": "Ask for neutral salt spray results on hinges, handles and rollers.",
-          "evidence": "NSS report with hours and rating"
-        },
-        {
-          "id": "seals",
-          "label": "Seals and magnetic strips: material and anti-mould",
-          "hint": "Check the seal material, magnetic strength and anti-mould treatment.",
-          "evidence": "Material data sheet and a photo of the seal cross-section"
-        },
-        {
-          "id": "reachRohs",
-          "label": "REACH and RoHS declarations for plastics and coatings",
-          "hint": "Ask for signed declarations and check the date.",
-          "evidence": "Signed declarations with date"
-        }
-      ]
+      "kind": "checks"
     },
     {
       "id": "testing",
       "no": "5",
       "title": "Product testing",
-      "kind": "checks",
-      "items": [
-        {
-          "id": "waterTightness",
-          "label": "Water-retention test per batch",
-          "hint": "Ask to see the test on the line and the record for the last batch.",
-          "evidence": "Test bench photo and batch test record"
-        },
-        {
-          "id": "testEquipment",
-          "label": "Test equipment and third-party reports on file",
-          "hint": "List the equipment on site: fragmentation, impact, salt spray, cycle test.",
-          "evidence": "Equipment list with photos and calibration dates"
-        },
-        {
-          "id": "packagingTest",
-          "label": "Packaging specification and drop test",
-          "hint": "Ask for the carton specification and any drop test, and inspect a packed unit.",
-          "evidence": "Packaging spec and drop test report or photo"
-        }
-      ]
+      "kind": "checks"
     },
     {
       "id": "commercial",
@@ -545,38 +447,6 @@
               "Domestic"
             ]
           ]
-        }
-      ],
-      "items": [
-        {
-          "id": "oem",
-          "label": "OEM / ODM capability",
-          "hint": "Ask whether they can produce under our brand and handle our packaging and labels.",
-          "evidence": "OEM references and a sample label"
-        },
-        {
-          "id": "quotation",
-          "label": "Written quotation received",
-          "hint": "Get a written quotation with Incoterm, MOQ, lead time and validity.",
-          "evidence": "Quotation PDF"
-        },
-        {
-          "id": "overall",
-          "label": "Overall impression",
-          "hint": "Your own impression after walking the plant: would you put this factory in front of HQ?",
-          "evidence": "Short note"
-        },
-        {
-          "id": "communication",
-          "label": "Communication and English capability",
-          "hint": "Test English during the visit and identify the future technical contact.",
-          "evidence": "Contact name and role"
-        },
-        {
-          "id": "cooperation",
-          "label": "Willingness to cooperate and responsiveness",
-          "hint": "Did they open the workshop, share records and answer uncomfortable questions?",
-          "evidence": "Note"
         }
       ],
       "tailFields": [

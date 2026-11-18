@@ -431,6 +431,74 @@ textarea{min-height:76px;resize:vertical;line-height:1.4}
   .card,.sec{box-shadow:none;border-color:#bbb}
 }
 
+/* ------------------------------------------------------------- touch feel */
+/* Every control answers a finger: a small scale-down plus a tint while it is
+   pressed, and no 300 ms wait or double-tap zoom in between. */
+button,.chip,.state-chip,.tab,.list-item,.cl-btn{
+  touch-action:manipulation;
+  -webkit-user-select:none;user-select:none;
+}
+.btn,.chip,.state-chip,.tab,.list-item,.link-btn,.icon-btn,.cl-btn,
+.ph-cover,.ph-del,.ev-del,.shot-del{
+  transition:transform .09s ease,background-color .12s ease,border-color .12s ease,color .12s ease;
+}
+.btn:active{transform:scale(.97);background:#EFF1F8}
+.btn.primary:active{background:var(--accent-d);box-shadow:inset 0 2px 7px rgba(0,0,0,.22)}
+.btn.danger:active{background:#8A1616}
+.btn:disabled:active{transform:none}
+
+.chip:active{transform:scale(.95);background:#EFF1F8}
+.chip[aria-pressed="true"]:active{background:var(--accent-d);transform:scale(.95)}
+
+.state-chip:active{transform:scale(.96);background:#EFF1F8;border-color:var(--accent)}
+.state-chip[aria-pressed="true"]:active{transform:scale(.96);box-shadow:inset 0 2px 6px rgba(0,0,0,.18)}
+
+.link-btn:active{transform:scale(.97)}
+.icon-btn:active{transform:scale(.9);background:rgba(255,255,255,.22)}
+.cl-btn:active{transform:scale(.92);background:var(--accent-l);border-color:var(--accent)}
+
+.tab:active{background:var(--accent-l)}
+.tab:active .tab-ico{transform:scale(.84)}
+.tab.active:active .tab-ico{transform:scale(.84) translateY(-1px)}
+
+.list-item:active{transform:scale(.99);background:#F7F8FD}
+.ph-cover:active,.ph-del:active,.ev-del:active,.shot-del:active{transform:scale(.88)}
+
+@media (prefers-reduced-motion:reduce){
+  .btn,.chip,.state-chip,.tab,.list-item,.link-btn,.icon-btn,.cl-btn,
+  .ph-cover,.ph-del,.ev-del,.shot-del{transition:none}
+  .btn:active,.chip:active,.state-chip:active,.tab:active,.list-item:active,
+  .link-btn:active,.icon-btn:active,.cl-btn:active,
+  .ph-cover:active,.ph-del:active,.ev-del:active,.shot-del:active{transform:none}
+}
+
+/* --------------------------------------------------------- own chip values */
+.chip.chip-add{
+  border-style:dashed;border-color:var(--accent);color:var(--accent);
+  background:transparent;font-weight:600;
+}
+.chip.chip-add:active{background:var(--accent-l)}
+.chip.chip-cust{border-style:dashed;border-color:var(--accent-l);background:#fff}
+.chip.chip-cust[aria-pressed="true"]{border-style:solid}
+.chip-entry{display:flex;gap:8px;margin-top:8px}
+.chip-entry .input{flex:1;min-width:0}
+.chip-entry .btn{flex:none;padding:0 14px}
+
+/* ------------------------------------------------------------- photo field */
+.field-hint{font-size:12px;color:var(--muted);margin:-2px 0 8px;line-height:1.4}
+.shot-strip{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.shot-wrap{position:relative;display:inline-block;line-height:0}
+.shot-thumb{
+  width:96px;height:62px;border-radius:8px;object-fit:cover;
+  border:1px solid var(--line);background:var(--accent-l);
+}
+.shot-del{
+  position:absolute;right:-6px;top:-6px;width:22px;height:22px;
+  border:0;border-radius:50%;background:var(--bad);color:#fff;
+  font-size:13px;line-height:22px;text-align:center;cursor:pointer;padding:0;
+}
+.shot-empty{font-size:12px;color:var(--muted)}
+
 /* --------------------------------------------------------- home comments */
 .comment-card{padding:14px 16px}
 .comment-head{font-size:13px;font-weight:650;color:var(--accent);margin-bottom:8px}

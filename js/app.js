@@ -186,8 +186,10 @@ window.FRApp = (function () {
       var total = FRModel.totalItems();
       mount.innerHTML = list.map(function (r) {
         var rec = FRModel.recordedCount(r);
-        var badge = total ? rec + "/" + total : "0";
-        var cls = total && rec === total ? "complete" : "draft";
+        var cls = FRModel.statusOf(r);
+        /* an empty checklist has nothing to count, so the badge says where
+           the visit stands instead of showing 0 / 0 */
+        var badge = total ? rec + "/" + total : (cls === "complete" ? "done" : "draft");
         var cover = FRModel.coverId(r);
         var sub = [
           U.fmtDate(r.profile.visitDate),
@@ -633,9 +635,9 @@ window.FRApp = (function () {
       }).join("");
 
       return '<div class="cl-sec" data-cl-sec="' + U.esc(sec.id) + '">' +
-        '<div class="cl-sec-head"><span>' + U.esc(sec.no) + '  ' + U.esc(sec.title) + '</span>' +
+        '<div class="cl-sec-head"><span>' + (sec.no ? U.esc(sec.no) + '  ' : '') + U.esc(sec.title) + '</span>' +
           '<span class="muted small">' + items.length + '</span></div>' +
-        (rows || '<p class="muted small">No items yet.</p>') +
+        (rows || '<p class="muted small">No items yet - this section stays hidden in the form until you add one.</p>') +
         '<button class="link-btn" type="button" data-cl-add="' + U.esc(sec.id) + '">+ Add item</button>' +
       '</div>';
     }).join("");
@@ -711,13 +713,13 @@ window.FRApp = (function () {
   }
 
   function resetChecklist() {
-    return ask("Reset the checklist?",
-      "All names, hints and custom items return to the 25 defaults. Notes already recorded on visits are kept.",
-      "Reset").then(function (ok) {
+    return ask("Clear the checklist?",
+      "Every item, name and hint is removed and the checklist goes back to empty. Notes already recorded on visits are kept.",
+      "Clear").then(function (ok) {
       if (!ok) return null;
       return FRRules.resetDefaults().then(function () {
         renderChecklistEditor();
-        checklistSaved("Checklist reset to defaults.");
+        checklistSaved("Checklist cleared.");
       });
     });
   }
@@ -774,7 +776,8 @@ window.FRApp = (function () {
         return !(f.options || []).length;
       });
       html += '<div class="tpl-sec">' +
-        '<div class="tpl-sub tpl-sub-tight">Section ' + U.esc(sec.no) + '</div>' +
+        '<div class="tpl-sub tpl-sub-tight">' +
+          (sec.no ? "Section " + U.esc(sec.no) : "Not shown - no items yet") + '</div>' +
         '<input class="input tpl-sec-input" type="text" data-tpl-section="' + U.esc(sec.id) + '" value="' +
           U.esc(sec.title) + '" aria-label="Section ' + U.esc(sec.no) + ' title">' +
         list.map(function (f) {
