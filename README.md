@@ -18,9 +18,10 @@ Offline-first factory visit reports, written on site and exported as one A4 PDF.
   "+ Other" chip, so a product that is not on the list can simply be typed in.
   It is stored on the visit only - the template stays clean.
 - Profile also records main markets and main customers / brands. There is no
-  business-licence number and no licence-address comparison.
+  business-licence number and no licence-address comparison, and the commercial
+  section no longer repeats export markets - they are recorded once, in the profile.
 - **Editable template**: section titles, field labels, every option list (products,
-  markets, in-house processes, contact roles, export markets, buildings…), the four
+  markets, in-house processes, contact roles, buildings…), the four
   record states and the photo categories can all be renamed, reordered, extended or
   deleted in Settings. The defaults are a shower-enclosure factory; retune them
   in a minute for a hardware, faucet or glass factory.

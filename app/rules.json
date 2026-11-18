@@ -1,5 +1,5 @@
 {
-  "version": "2.2.0",
+  "version": "2.2.1",
   "language": "en",
   "states": [
     {
@@ -411,42 +411,6 @@
           "type": "number",
           "store": "commercial",
           "min": 0
-        },
-        {
-          "k": "exportMarkets",
-          "label": "Export markets",
-          "type": "chips",
-          "store": "commercial",
-          "options": [
-            [
-              "de",
-              "Germany"
-            ],
-            [
-              "eu",
-              "EU"
-            ],
-            [
-              "uk",
-              "UK"
-            ],
-            [
-              "na",
-              "North America"
-            ],
-            [
-              "me",
-              "Middle East"
-            ],
-            [
-              "asia",
-              "Asia"
-            ],
-            [
-              "domestic",
-              "Domestic"
-            ]
-          ]
         }
       ],
       "tailFields": [

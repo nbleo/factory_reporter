@@ -59,6 +59,7 @@ function check(name, cond, extra) {
       licence: FRRules.field("businessLicenseNo"),
       address: FRRules.field("addressMatchesLicense"),
       showroom: FRRules.field("showroomAreaSqm"),
+      exportMarkets: FRRules.field("exportMarkets"),
       markets: !!(FRRules.field("mainMarkets") || {}).options,
       customers: (FRRules.field("mainCustomers") || {}).type,
       card: (FRRules.field("businessCardIds") || {}).type,
@@ -69,6 +70,7 @@ function check(name, cond, extra) {
     check("business licence number is gone", fields.licence === null);
     check("licence-address comparison is gone", fields.address === null);
     check("sample room area is gone", fields.showroom === null);
+    check("export markets is gone from commercial", fields.exportMarkets === null);
     check("main markets added", fields.markets === true);
     check("main customers added", fields.customers === "textarea", fields.customers);
     check("business card slot added", fields.card === "photos", fields.card);
