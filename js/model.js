@@ -2,7 +2,7 @@
 window.FRModel = (function () {
   "use strict";
 
-  var APP_VERSION = "2.2.0";
+  var APP_VERSION = "2.2.1";
   var SCHEMA = 2;
 
   function makeId(visitDate, factoryName) {
@@ -36,7 +36,7 @@ window.FRModel = (function () {
         monthlyCapacity: null, inHouseProcesses: []
       },
       answers: {},
-      commercial: { moq: "", leadTimeDays: null, exportMarkets: [], nextSteps: "" },
+      commercial: { moq: "", leadTimeDays: null, nextSteps: "" },
       conclusion: { comments: "", signature: { name: "", date: "" } },
       photos: [],
       coverPhotoId: "",
@@ -67,6 +67,9 @@ window.FRModel = (function () {
     out.conclusion.signature = Object.assign({}, base.conclusion.signature,
       (r.conclusion && r.conclusion.signature) || {});
     out.conclusion.comments = String((r.conclusion && r.conclusion.comments) || "");
+
+    /* v2.2.1: export markets are recorded once, in the factory profile. */
+    delete out.commercial.exportMarkets;
 
     out.answers = {};
     Object.keys(r.answers || {}).forEach(function (id) {
